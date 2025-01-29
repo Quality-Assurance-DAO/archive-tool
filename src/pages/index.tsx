@@ -1,15 +1,24 @@
-// Updated components/Home.tsx
-import { NextPage } from "next";
+// pages/index.tsx
 
-const Home: NextPage = () => {
+import type { NextPage } from 'next';
+import { useAuth } from '../context/AuthContext';
+
+const HomePage: NextPage = () => {
+  const { user, signOut } = useAuth();
 
   return (
     <div>
-      <div>
-        Home Page
-      </div>
+      <h1>Home Page</h1>
+      {user ? (
+        <>
+          <p>Welcome, {user.email}!</p>
+          <button onClick={signOut}>Logout</button>
+        </>
+      ) : (
+        <p>Please login.</p>
+      )}
     </div>
   );
 };
 
-export default Home;
+export default HomePage;
