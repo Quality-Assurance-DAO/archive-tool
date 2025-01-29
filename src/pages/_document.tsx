@@ -6,7 +6,7 @@ export default function Document() {
     <Html lang="en">
       <Head>
         <meta charSet="utf-8" />
-        <meta name="description" content="Treasury Management DApp for Cardano" />
+        <meta name="description" content="Archive Tool for communities" />
         <link rel="icon" type="image/png" sizes="300x300" href="/favicon.png" /> 
       </Head>
       <body>
