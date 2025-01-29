@@ -11,18 +11,14 @@ import { supabase } from '../services/supabaseClient';
 
 interface AuthContextProps {
   user: User | null;
-  signIn: (email: string, password: string) => Promise<User | null>;
-  signUp: (email: string, password: string) => Promise<User | null>;
+  signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  signInWithDiscord: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextProps>({
   user: null,
-  signIn: async () => null,
-  signUp: async () => null,
+  signIn: async () => {},
   signOut: async () => {},
-  signInWithDiscord: async () => {},
 });
 
 interface AuthProviderProps {
@@ -32,21 +28,21 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
 
+  // On mount, check if a session exists, then subscribe to changes
   useEffect(() => {
     const fetchSession = async () => {
-      // getSession in Supabase JS v2
       const {
         data: { session },
       } = await supabase.auth.getSession();
 
       setUser(session?.user ?? null);
 
-      // Listen for changes to the auth state
-      const {
-        data: authListener,
-      } = supabase.auth.onAuthStateChange(async (_event, session) => {
-        setUser(session?.user ?? null);
-      });
+      // Listen for auth state changes (login/logout)
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        async (_event, session) => {
+          setUser(session?.user ?? null);
+        }
+      );
 
       return () => {
         authListener.subscription.unsubscribe();
@@ -56,76 +52,27 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     fetchSession();
   }, []);
 
-  /**
-   * signIn - logs in an existing user with email/password
-   */
-  const signIn = async (email: string, password: string): Promise<User | null> => {
-    // If you're on v2, signInWithPassword is recommended:
-    // const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    // if (error) throw error;
-    // return data.user;
-    //
-    // But if you're mixing v1 and v2 usage:
-    const { user, error } = await supabase.auth.signIn({ email, password });
+  // Sign in with Discord
+  const signIn = async (): Promise<void> => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: window.location.origin, 
+        // or a custom callback route in your app if desired
+      },
+    });
     if (error) throw error;
-    return user;
+    // Supabase will handle the redirect automatically
   };
 
-  /**
-   * signUp - creates a new user with email/password
-   */
-  const signUp = async (email: string, password: string): Promise<User | null> => {
-    // In v2:
-    // const { data, error } = await supabase.auth.signUp({ email, password });
-    // if (error) throw error;
-    // return data.user;
-    //
-    // But to match your old usage:
-    const { user, error } = await supabase.auth.signUp({ email, password });
-    if (error) throw error;
-    return user;
-  };
-
-  /**
-   * signOut - logs out the current user
-   */
+  // Sign out
   const signOut = async (): Promise<void> => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
-  /**
-   * signInWithDiscord - OAuth with Discord
-   */
-  const signInWithDiscord = async (): Promise<void> => {
-    // In Supabase JS v2, the recommended method is signInWithOAuth
-    // For Discord, just pass `provider: 'discord'`.
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'discord',
-      options: {
-        // Provide a redirect if you want a custom callback:
-        redirectTo: `${window.location.origin}`,
-      },
-    });
-
-    if (error) throw error;
-
-    // data.url is the Discord OAuth URL
-    // Supabase will typically handle the redirect automatically in a new window,
-    // or you can programmatically redirect if you prefer.
-    // window.location.href = data.url
-  };
-
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        signIn,
-        signUp,
-        signOut,
-        signInWithDiscord,
-      }}
-    >
+    <AuthContext.Provider value={{ user, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );
